@@ -8,31 +8,38 @@ Team members: Tian Xie, Tianyao Gu
 
 ### SUMMARY
 
-We are going to implement an optimized efficient oblivious sorting algorithm on Intel SGX with parallelism, where we will leverage the multithreading, SIMD and possibly OpenMP.
+We are going to implement a parallel oblivious sorting algorithm in C++ with Intel SGX, where we will leverage multithreading and SIMD.
 
 
 
 ### BACKGROUND
 
-Our motivation is to securely outsource data and computation to an untrusted worker equipped with a secure processor such as Intel SGX. Our goal is to safeguard the privacy of the data from both software attacks and physical attacks 
+Our motivation is to securely outsource data and computation to an untrusted worker equipped with secure processors such as Intel SGX. While secure processors preserve data privacy using encryption, various literatures have demonstrated that attackers can exploit the memory access and page swap patterns during the computation to learn useful information about the data.
 
+Oblivious algorithms offer a provable protection against such side-channel attacks, since ``obliviousness'' essentially requires that the memory access and page swap patterns are independent of the secret data. Sorting is one of the most commonly needed primitives in oblivious computation. 
+
+Our project is based on a prior [research paper](https://eprint.iacr.org/2023/1258) by Gu et.al. This paper proposed and implemented an efficient oblivious sorting in hardware enclaves that achieves asymptotically optimal runtime. However, the algorithm is presented and implemented with a single-thread, which significantly limits its performance.
+
+We decide to continue the work. by parallelizing the oblivious shuffling/sorting algorithm.
 
 
 ### THE CHALLENGE
 
-The most worth-noting property of Intel SGX is that its memory is very limited, which gives rise to most major challanges of our project listed below:
+A worth-noting property of Intel SGX is its limited secure memory (especially in its earlier versions), which gives rise to most major challenges of our project listed below:
 
-1. The memory of Intel SGX is very limited so the entire butterfly network cannot fit inside the memory, so we will have to handle the memory page swaps between the Intel SGX and OS, which is expensive.
-2. The Intel SGX iteself does not support syscalls, so it is very expensive when handling the file operations, such as open, read and write. Due to the large amount of data we are sorting, the file operations are common and need optimizing.
-3. ...
-
+1. When the amount of data to sort exceeds the size of the secure memory, we need a page swap mechanism between the secure and insecure memory, which involves expensive cryptographic operations. Therefore, we need to not only parallelize the algorithm itself but also this page swap mechanism. 
+2. When the amount of data to sort also exceeds the size of the physical memory, we need to further perform page swaps with the disk. This offers us both opportunities and challenges to overlap computation and I/O.
+3. Using tools such as openmp may introduce extra memory overhead. Therefore, we may need to implement the scheduling by ourselves for best performance.
+4. The number of threads needs to be declared before the launch of the Intel SGX enclave, and each thread consumes some non-negligible amount of stack space. Therefore, we need to maintain some sort of thread pool.
+5.  The Intel SGX does not allow making syscalls in the secure environment, so we need to perform a context switch before we can access the disk. Therefore, we need to utilize some batch operations to amortize the cost of context switches, which further increases the complexity of the aforementioned parallel page swap mechanism.
+6. Optimization by the compiler might break the obliviousness of the algorithm. Therefore, we need to implement SIMD optimizations using C++ intrinsics directly.
 
 
 ### RESOURCES
 
-Our project is based on a prior [research paper](https://eprint.iacr.org/2023/1258) of one of our teammate, Tanya Gu. This paper proposed an efficient oblivious sorting and shuffling algorithm in hardware enclaves. However, it is not parallelized and we decide to continue working on it to parallelize this algorithm. The algorithm is already implemented made [open-source](https://github.com/odslib/oblsort), and we will use this reposity as out codebase in this project.
+ The algorithm by Gu et.al. is already made [open-source](https://github.com/odslib/oblsort), and we will use this repository as out codebase in this project.
 
-We have already have access to a server with support to Intel SGX, the specific hardware enclave we choose to use in this project, so for now we don't need any other resources.
+We already have access to a server with support to Intel SGX, the specific hardware enclave we choose to use in this project. The server features 36 physical cores and have 1TB RAM and several terabytes of disk space. For now, we don't need any other resources.
 
 
 
@@ -42,14 +49,14 @@ In general, our deliverables will be a combination of a software deliverable, a 
 
 #### Software Deliverable
 
-Our software implementation should ba capable of parallelize the exisiting implementation of the oblivious sorting algorithm on Intel SGX, which acclerates the execution time and improves the performance. For now, we cannot state a precise speedup goal, but we anticipate it to be obvious. 
+Our software implementation should be capable of parallelize the existing implementation of the oblivious sorting algorithm on Intel SGX, which accelerates the execution time and improves the performance. For now, we cannot state a precise speedup goal, but we anticipate it to be obvious. 
 
 To be more specific, we have 4 goals in this deliverables, the first 2 goals are the minimal goals when our work goes slow, the first 3 goals are expected to be done, and the last goal is considered as extra work when our project goes well:
 
-1. Implement the parallelism of MergeSplit butterfly network in specific hardware, Intel SGX. 
+1. Parallelize the algorithm in Intel SGX. Specifically, the multi-way butterfly network presented in the paper.
 2. Enhance the parallelism using SIMD
-3. Optimize the memory efficiency
-4. Implement the multithreading I/O and data prefetching between the Enclave and OS.
+3. Optimize memory efficiency during parallel computing
+4. Implement a general framework for multithreading I/O between the SGX Enclave and OS.
 
 #### Poster Deliverable
 

@@ -12,8 +12,7 @@
 # https://learn-the-web.algonquindesign.ca/topics/markdown-yaml-cheat-sheet/#yaml
 # https://learnxinyminutes.com/docs/yaml/
 
-baseurl: /
-url: https://debugevent90901.github.io/parallel-oblsort/
+baseurl: "/parallel-oblsort"
 
 #
 # Site settings

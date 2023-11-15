@@ -8,38 +8,47 @@ Team members: Tian Xie, Tianyao Gu
 
 ### SUMMARY
 
-We are going to implement a parallel oblivious sorting algorithm in C++ with Intel SGX, where we will leverage multithreading and SIMD.
+We are going to implement a parallel oblivious sorting algorithm in C++ using Intel SGX, which provably resists side-channel attacks. We will leverage multithreading, SIMD, as well as techniques such as prefetching and write back buffer to overlap computation and communication.
 
 
 
 ### BACKGROUND
 
-Our motivation is to securely outsource data and computation to an untrusted worker equipped with secure processors such as Intel SGX. While secure processors preserve data privacy using encryption, various literatures have demonstrated that attackers can exploit the memory access and page swap patterns during the computation to learn useful information about the data.
+Our motivation is to securely outsource data and computation to an untrusted worker equipped with secure processors such as Intel SGX. Although secure processors ensure data privacy through encryption, existing literature reveals that attackers can exploit memory access and page swap patterns during computations to glean information about the data.
 
-Oblivious algorithms offer a provable protection against such side-channel attacks, since ``obliviousness'' essentially requires that the memory access and page swap patterns are independent of the secret data. Sorting is one of the most commonly needed primitives in oblivious computation. 
+Oblivious algorithms provide a verifiable shield to counter such side-channel attacks. This is because "Obliviousness" essentially demands that memory access and page swap patterns remain independent of secret data. In addition, sorting stands out as a crucial primitive in oblivious computation.
 
-Our project is based on a prior [research paper](https://eprint.iacr.org/2023/1258) by Gu et.al. This paper proposed and implemented an efficient oblivious sorting in hardware enclaves that achieves asymptotically optimal runtime. However, the algorithm is presented and implemented with a single-thread, which significantly limits its performance.
+Our project is based on a prior [research paper](https://eprint.iacr.org/2023/1258) by Gu et.al. This paper proposed and implemented an efficient oblivious sorting in hardware enclaves, which achieves asymptotically optimal runtime. However, the algorithm, as presented and implemented, is single-threaded, posing limitations on its performance.
 
-We decide to continue the work. by parallelizing the oblivious shuffling/sorting algorithm.
+In our continuation of this work, we aim to enhance performance by parallelizing the oblivious sorting algorithm. As a byproduct, we will also obtain a parallel oblivious random shuffling algorithm.
 
 
 ### THE CHALLENGE
 
 A worth-noting property of Intel SGX is its limited secure memory (especially in its earlier versions), which gives rise to most major challenges of our project listed below:
 
-1. When the amount of data to sort exceeds the size of the secure memory, we need a page swap mechanism between the secure and insecure memory, which involves expensive cryptographic operations. Therefore, we need to not only parallelize the algorithm itself but also this page swap mechanism. 
-2. When the amount of data to sort also exceeds the size of the physical memory, we need to further perform page swaps with the disk. This offers us both opportunities and challenges to overlap computation and I/O.
-3. Using tools such as openmp may introduce extra memory overhead. Therefore, we may need to implement the scheduling by ourselves for best performance.
-4. The number of threads needs to be declared before the launch of the Intel SGX enclave, and each thread consumes some non-negligible amount of stack space. Therefore, we need to maintain some sort of thread pool.
-5.  The Intel SGX does not allow making syscalls in the secure environment, so we need to perform a context switch before we can access the disk. Therefore, we need to utilize some batch operations to amortize the cost of context switches, which further increases the complexity of the aforementioned parallel page swap mechanism.
-6. Optimization by the compiler might break the obliviousness of the algorithm. Therefore, we need to implement SIMD optimizations using C++ intrinsics directly.
+Several noteworthy challenges stem from the limited secure memory of Intel SGX, particularly in its earlier versions. These challenges, integral to our project, are outlined below:
+
+1. Secure Memory Limitations: The constrained size of Intel SGX's secure memory, especially in earlier versions, necessitates a page swap mechanism between secure and insecure memory when sorting data surpasses this limit. This involves resource-intensive cryptographic operations. Thus, our challenge is not only to parallelize the algorithm but also to optimize this page swap mechanism.
+
+2. Handling Large Datasets: When the data size exceeds both secure and physical memory, additional page swaps with the disk become necessary. This presents both opportunities and challenges in effectively overlapping computation and I/O operations.
+
+3. Memory Overhead with OpenMP: The use of tools like OpenMP may introduce extra memory overhead. To ensure optimal performance, we may need to implement our scheduling mechanisms rather than relying on existing tools.
+
+4. Thread Management: Pre-declaring the number of threads before launching the Intel SGX enclave, coupled with each thread consuming non-negligible stack space, requires careful maintenance of a thread pool.
+
+5. Memory Fragmentation: Multi-threading introduces the potential for memory fragmentation, necessitating careful consideration during memory allocation.
+
+6. Syscall Limitations: Intel SGX prohibits syscalls in the secure environment, requiring a context switch before accessing the disk. As a result, batch operations are necessary to amortize the cost of context switches, complicating the parallel page swap mechanism.
+
+7. Compiler Optimization Challenges: Compiler optimizations may inadvertently compromise the obliviousness of the algorithm. To mitigate this, we must implement SIMD optimizations directly using C++ intrinsics. This ensures that the algorithm remains oblivious while achieving the desired performance enhancements.
 
 
 ### RESOURCES
 
- The algorithm by Gu et.al. is already made [open-source](https://github.com/odslib/oblsort), and we will use this repository as out codebase in this project.
+The algorithm by Gu et.al. is already made [open-source](https://github.com/odslib/oblsort), and we will use this repository as out codebase in this project.
 
-We already have access to a server with support to Intel SGX, the specific hardware enclave we choose to use in this project. The server features 36 physical cores and have 1TB RAM and several terabytes of disk space. For now, we don't need any other resources.
+We already have access to a server with support to Intel SGX, the specific hardware enclave we choose to use in this project. The server features 36 physical cores and have 1TB RAM and multiple TBs of disk space. For now, we don't need any other resources.
 
 
 
@@ -49,29 +58,34 @@ In general, our deliverables will be a combination of a software deliverable, a 
 
 #### Software Deliverable
 
-Our software implementation should be capable of parallelize the existing implementation of the oblivious sorting algorithm on Intel SGX, which accelerates the execution time and improves the performance. For now, we cannot state a precise speedup goal, but we anticipate it to be obvious. 
+Our software implementation aims to parallelize the existing oblivious sorting algorithm on Intel SGX, enhancing its performance while preserving the oblivious property. Although we do not currently specify a precise speedup goal, we anticipate achieving at least a 10x improvement on our 36-core machine.
 
-To be more specific, we have 4 goals in this deliverables, the first 2 goals are the minimal goals when our work goes slow, the first 3 goals are expected to be done, and the last goal is considered as extra work when our project goes well:
+We have outlined four goals for these deliverables, with the first two considered minimal objectives, the first three expected to be completed, and the last goal viewed as additional work contingent on project progress:
 
-1. Parallelize the algorithm in Intel SGX. Specifically, the multi-way butterfly network presented in the paper.
-2. Enhance the parallelism using SIMD
-3. Optimize memory efficiency during parallel computing
-4. Implement a general framework for multithreading I/O between the SGX Enclave and OS.
+1. Parallelization of the Algorithm in Intel SGX:
+    Parallelize the multi-way butterfly network as outlined in the paper. The fixed memory access pattern of the butterfly network and the independence of each multi-way "mergesplit" operation make this task achievable.
+
+2. Enhancement of Parallelism Using SIMD:
+    Improve parallelism by leveraging the AVX2 instruction set for oblivious compare-and-swap operations. Assuming each element contains a payload occupying multiple memory words, SIMD will be employed to accelerate both oblivious compare-and-swap and histogram counting operations.
+
+3. Optimization of Memory Efficiency During Parallel Computing:
+    Address challenges arising from SGX enclave's limited secure memory size by optimizing memory efficiency during parallelization. This step is crucial for mitigating potential issues associated with multi-threading in SGX enclave.
+
+4.  Implementation of a General Framework for Multithreading I/O:
+    Develop a versatile framework for multithreading I/O between the SGX enclave and the operating system. The intention is to extend the applicability of our work beyond sorting and shuffling algorithms. The goal is to create a broader page-swapping framework, enabling the parallel execution of various algorithms within the SGX enclave.
 
 #### Poster Deliverable
 
-The poster session will showcase the performance enhancements achieved by our implementation. We will present speedup graphs and output comparisons under varying loads. However, the project's nature precludes an interactive demonstration.
-
+The poster session is designed to highlight the performance improvements achieved through our implementation. Our presentation will feature speedup graphs and output comparisons, considering diverse loads (such as the number of elements and the size of each element) and system configurations (enclave size, memory size, with or without SIMD). Additionally, we will conduct a thorough analysis to identify bottlenecks influencing the speedup of our implementation. Due to the project's nature, an interactive demonstration won't be feasible during the poster session.
 
 
 ### PLATFORM CHOICE
 
-Since the PSC bridge-2 machines do not support secure hardware enclaves, we choose to work on another Linux server that supports Intel SGX. Although our implementation uses Intel SGX, the algorithm design should work for any common hardware enclave architecture.
+Due to the absence of secure hardware enclave support on the PSC bridge-2 machines, we have opted to utilize another Linux server located on the 3rd floor of Gates, which is equipped with Intel SGX support. It's worth noting that while our implementation is tailored for Intel SGX, the algorithm design is intended to be compatible with common hardware enclave architectures.
 
-For the programming language, we choose to use C++ with SIMD and multithreading. We will also explore the possibility of using OpenMP in Intel SGX, which we are not sure for now due to the hardware characteristics.
+In terms of programming language, we have selected C++ for its ability to deliver high performance and provide low-level control over the operating system, with finer granularities. Additionally, we are exploring the potential use of OpenMP in Intel SGX, although its feasibility is yet to be confirmed based on the specific hardware characteristics.
 
-We think this platform choice makes sense as our project is targeted to parallelize the oblivious sorting in hardware enclaves, among which Intel SGX is a popular and reasonable choice. Also, C++ offers great performance and low-level control of the OS with smaller granularities.
-
+This platform choice aligns well with our project's focus on parallelizing oblivious sorting within hardware enclaves, with Intel SGX being a prevalent and rational selection.
 
 
 ### SCHEDULE

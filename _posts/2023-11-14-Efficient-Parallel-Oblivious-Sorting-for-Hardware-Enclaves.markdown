@@ -64,7 +64,7 @@ In general, our deliverables will be a combination of a software deliverable, a 
 
 #### Software Deliverable
 
-Our software implementation aims to parallelize the existing oblivious sorting algorithm on Intel SGX, enhancing its performance while preserving the oblivious property. Although we do not currently specify a precise speedup goal, we anticipate achieving at least a 10x improvement on our 36-core machine.
+Our software implementation aims to parallelize the existing oblivious sorting algorithm on Intel SGX, enhancing its performance while preserving the oblivious property. We anticipate achieving at least a 10x improvement with 32 threads.
 
 We have outlined four goals for these deliverables, with the first two considered minimal objectives, the first three expected to be completed, and the last goal viewed as additional work contingent on project progress:
 
@@ -110,7 +110,7 @@ Specifically, we did the following:
 
 6. Developed a reader/writer pool manager to fetch input and combine the final output, reduces contention between the threads.
 
-7. Separate a central pseudo-random number generator (which uses AES counter mode) to multiple ones to reduce contention.
+7. Separate a central pseudo-random number generator (which uses AES counter mode) into multiple ones to reduce contention.
 
 8. Used C++ intrinsics to accelerate element-wise oblivious exchange using SIMD. Applied different instruction sets such as AVX512, AVX2, and SSE2 to make the code compatible on a wide range of processors.
 
@@ -120,13 +120,13 @@ The current speedup results are listed below
 
 
 #### Compare to previous goals
-We have completed most of the goals 1, 2, 3. 
+We have completed most of the goals 1, 2, 3, and prepare to work on task 4. The list of the goal is the same as in the proposal.
 
 For task 1, we still need to parallelize the non-oblivious external Mergesort, which comes after the data have been obliviously shuffled. This part occupies about 1/4 of the running time in the single threaded implementation.
 
 The task 2 is fully completed. We don't think we can utilize SIMD in other parts of the program.
 
-Task 3 is almost completed. We have been trying to utilizing the enclave memory to the maximum extent to increase parallelism and reduce I/O. Nevertheless, there still seems to be some fragmentation problem, which results in imperfect utilization.
+Task 3 is almost completed. We have been trying to utilizing the enclave memory to the maximum extent to increase parallelism and reduce I/O. Nevertheless, there still seems to be some memory fragmentation issue, which results in imperfect utilization.
 
 Task 4 was meant to be optional, and we haven't started yet.
 

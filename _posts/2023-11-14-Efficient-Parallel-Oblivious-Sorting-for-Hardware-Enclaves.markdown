@@ -29,19 +29,25 @@ A worth-noting property of Intel SGX is its limited secure memory (especially in
 
 Several noteworthy challenges stem from the limited secure memory of Intel SGX, particularly in its earlier versions. These challenges, integral to our project, are outlined below:
 
-1. Secure Memory Limitations: The constrained size of Intel SGX's secure memory, especially in earlier versions, necessitates a page swap mechanism between secure and insecure memory when sorting data surpasses this limit. This involves resource-intensive cryptographic operations. Thus, our challenge is not only to parallelize the algorithm but also to optimize this page swap mechanism.
+1. Insufficient parallelism：For small data input, the algorithm may not have enough independent tasks to complete the sorting. We need to adjust the parameters of the algorithm (e.g., the bucket size and the number of mergesplit ways on each layer) to ensure enough speed up at high CPU count. We also need to parallelize some building blocks of the algorithm, such as the pseudo-random generator.
 
-2. Handling Large Datasets: When the data size exceeds both secure and physical memory, additional page swaps with the disk become necessary. This presents both opportunities and challenges in effectively overlapping computation and I/O operations.
+2. Task scheduling: The original implementation of the algorithm uses recursion to run both the batch-wise and in-batch tasks. While the impelmentation improves locality for single threaded programs, for multi-threaded programs running with openmp, recursion typically does not provide as much speedup as parallel loops.
 
-3. Memory Overhead with OpenMP: The use of tools like OpenMP may introduce extra memory overhead. To ensure optimal performance, we may need to implement our scheduling mechanisms rather than relying on existing tools.
+3. Synchronization: Although most of the tasks are independent and just need to be synchronized at the end of each stage, we still need to perform some more advanced synchronization for reading the input and combining the output of the algorithm.
 
-4. Thread Management: Pre-declaring the number of threads before launching the Intel SGX enclave, coupled with each thread consuming non-negligible stack space, requires careful maintenance of a thread pool.
+4. Secure Memory Limitations: The constrained size of Intel SGX's secure memory, especially in earlier versions, necessitates a page swap mechanism between secure and insecure memory when sorting data surpasses this limit. This involves resource-intensive cryptographic operations. Thus, our challenge is not only to parallelize the algorithm but also to optimize this page swap mechanism.
 
-5. Memory Fragmentation: Multi-threading introduces the potential for memory fragmentation, necessitating careful consideration during memory allocation.
+5. Handling Large Datasets: When the data size exceeds both secure and physical memory, additional page swaps with the disk become necessary. This presents both opportunities and challenges in effectively overlapping computation and I/O operations.
 
-6. Syscall Limitations: Intel SGX prohibits syscalls in the secure environment, requiring a context switch before accessing the disk. As a result, batch operations are necessary to amortize the cost of context switches, complicating the parallel page swap mechanism.
+6. Memory Overhead with OpenMP: The use of tools like OpenMP may introduce extra memory overhead. To ensure optimal performance, we may need to implement our scheduling mechanisms rather than relying on existing tools.
 
-7. Compiler Optimization Challenges: Compiler optimizations may inadvertently compromise the obliviousness of the algorithm. To mitigate this, we must implement SIMD optimizations directly using C++ intrinsics. This ensures that the algorithm remains oblivious while achieving the desired performance enhancements.
+7. Thread Management: We need to pre-declaring the number of threads before launching the Intel SGX enclave. And since each thread has a memory overhead, and each task requires some temporary memory, we need to choose the number of threads wisely.
+
+8. Memory Fragmentation: Multi-threading introduces the potential for memory fragmentation, necessitating careful consideration during memory allocation.
+
+9.  Syscall Limitations: Intel SGX prohibits syscalls in the secure environment, requiring a context switch before accessing the disk. As a result, batch operations are necessary to amortize the cost of context switches, complicating the parallel page swap mechanism.
+
+10. Compiler Optimization Challenges: Compiler optimizations may inadvertently compromise the obliviousness of the algorithm. To mitigate this, we must implement SIMD optimizations directly using C++ intrinsics. This ensures that the algorithm remains oblivious while achieving the desired performance enhancements.
 
 
 ### RESOURCES
@@ -87,6 +93,42 @@ In terms of programming language, we have selected C++ for its ability to delive
 
 This platform choice aligns well with our project's focus on parallelizing oblivious sorting within hardware enclaves, with Intel SGX being a prevalent and rational selection.
 
+
+### Milestone Progress
+We have successfully parallelized the oblivious shuffling algorithm in Intel SGX using OpenMP and SIMD.
+Specifically, we did the following:
+
+1. Configured OpenMP in the Makefile and set up the multi-threaded environment in the SGX config files.
+
+2. Changed the butterfly routing from recursion to iterative, which reduces the overhead of parallel execution. ALso, we combined multiple batches into one batch when there's enough memory to increase parallelism.
+
+3. Improved the parameter solver to ensure that there are enough parallel tasks on each butterfly network level (by reducing bucket size and balancing the mergesplit ways on each level.)
+
+4. Used #omp parallel for to parallelize the execution of the butterfly network.
+
+5. Used #omp parallel for to parallelize I/O with external memory.
+
+6. Developed a reader/writer pool manager to fetch input and combine the final output, reduces contention between the threads.
+
+7. Separate a central pseudo-random number generator (which uses AES counter mode) to multiple ones to reduce contention.
+
+8. Used C++ intrinsics to accelerate element-wise oblivious exchange using SIMD. Applied different instruction sets such as AVX512, AVX2, and SSE2 to make the code compatible on a wide range of processors.
+
+9. Set up unit tests on the algorithm outside the enclave for debugging and tuning. Installed Intel vtune software.
+
+The current speedup results are listed below
+
+
+#### Compare to previous goals
+We have completed most of the goals 1, 2, 3. 
+
+For task 1, we still need to parallelize the non-oblivious external Mergesort, which comes after the data have been obliviously shuffled. This part occupies about 1/4 of the running time in the single threaded implementation.
+
+The task 2 is fully completed. We don't think we can utilize SIMD in other parts of the program.
+
+Task 3 is almost completed. We have been trying to utilizing the enclave memory to the maximum extent to increase parallelism and reduce I/O. Nevertheless, there still seems to be some fragmentation problem, which results in imperfect utilization.
+
+Task 4 was meant to be optional, and we haven't started yet.
 
 ### SCHEDULE
 

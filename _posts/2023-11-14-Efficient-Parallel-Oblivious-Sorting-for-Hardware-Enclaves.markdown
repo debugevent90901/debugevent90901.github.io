@@ -118,6 +118,8 @@ Specifically, we did the following:
 
 The current speedup results are listed below
 
+<img src="simd_shuffle.png" width="400"></img>
+<img src="speedup_shuffle.png" width="400"></img>
 
 #### Compare to previous goals
 We have completed most of the goals 1, 2, 3, and prepare to work on task 4. The list of the goal is the same as in the proposal.

@@ -118,9 +118,9 @@ Specifically, we did the following:
 
 The current speedup results are listed below
 
-![result1](/assets/simd_shuffle.png)
+![result1](/parallel-oblsort/assets/simd_shuffle.png)
 
-![result2](/assets/speedup_shuffle.png)
+![result2](/parallel-oblsort/assets/speedup_shuffle.png)
 
 #### Compare to previous goals
 We have completed most of the goals 1, 2, 3, and prepare to work on task 4. The list of the goal is the same as in the proposal.

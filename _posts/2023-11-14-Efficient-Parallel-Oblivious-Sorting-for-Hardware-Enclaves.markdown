@@ -118,8 +118,9 @@ Specifically, we did the following:
 
 The current speedup results are listed below
 
-<img src="https://github.com/debugevent90901/parallel-oblsort/blob/main/_posts/simd_shuffle.png" width="400"></img>
-<img src=https://github.com/debugevent90901/parallel-oblsort/blob/main/_posts/speedup_shuffle.png width="400"></img>
+![result1](/parallel-oblsort/assets/simd_shuffle)
+
+![result2](/parallel-oblsort/assets/speedup_shuffle)
 
 #### Compare to previous goals
 We have completed most of the goals 1, 2, 3, and prepare to work on task 4. The list of the goal is the same as in the proposal.

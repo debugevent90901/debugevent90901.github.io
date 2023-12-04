@@ -12,7 +12,12 @@ Team members: Tian Xie, Tianyao Gu
 
 ## Schedule
 
-For detailed scheduling information, please visit our main project page.
+|           Week           |                            Tasks                             |
+| :----------------------: | :----------------------------------------------------------: |
+| 12/03/2023 -- 12/06/2023 | Parallelization of the non-oblivious external Mergesort (Tian Xie) <br />Continue optimizating memory efficiency (Tianyao Gu) |
+| 12/06/2023 -- 12/09/2023 | Implement multithreading I/O (Tian Xie) <br />Continue optimizating memory efficiency (Tianyao Gu) |
+| 12/10/2023 -- 12/13/2023 | Continue implementing multithreading I/O (Tian Xie) <br />Continue optimizating memory efficiency (Tianyao Gu) |
+| 12/13/2023 -- 12/16/2023 | Writing final report (Tian Xie) <br />Preparing for poster session (Tianyao Gu) |
 
 
 

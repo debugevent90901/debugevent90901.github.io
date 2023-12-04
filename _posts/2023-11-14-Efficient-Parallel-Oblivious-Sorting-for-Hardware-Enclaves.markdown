@@ -94,44 +94,6 @@ In terms of programming language, we have selected C++ for its ability to delive
 This platform choice aligns well with our project's focus on parallelizing oblivious sorting within hardware enclaves, with Intel SGX being a prevalent and rational selection.
 
 
-### Milestone Progress
-We have successfully parallelized the oblivious shuffling algorithm in Intel SGX using OpenMP and SIMD.
-Specifically, we did the following:
-
-1. Configured OpenMP in the Makefile and set up the multi-threaded environment in the SGX config files.
-
-2. Changed the butterfly routing from recursion to iterative, which reduces the overhead of parallel execution. ALso, we combined multiple batches into one batch when there's enough memory to increase parallelism.
-
-3. Improved the parameter solver to ensure that there are enough parallel tasks on each butterfly network level (by reducing bucket size and balancing the mergesplit ways on each level.)
-
-4. Used #omp parallel for to parallelize the execution of the butterfly network.
-
-5. Used #omp parallel for to parallelize I/O with external memory.
-
-6. Developed a reader/writer pool manager to fetch input and combine the final output, reduces contention between the threads.
-
-7. Separate a central pseudo-random number generator (which uses AES counter mode) into multiple ones to reduce contention.
-
-8. Used C++ intrinsics to accelerate element-wise oblivious exchange using SIMD. Applied different instruction sets such as AVX512, AVX2, and SSE2 to make the code compatible on a wide range of processors.
-
-9. Set up unit tests on the algorithm outside the enclave for debugging and tuning. Installed Intel vtune software.
-
-The current speedup results are listed below
-
-![result1](/parallel-oblsort/assets/simd_shuffle.png)
-
-![result2](/parallel-oblsort/assets/speedup_shuffle.png)
-
-#### Compare to previous goals
-We have completed most of the goals 1, 2, 3, and prepare to work on task 4. The list of the goal is the same as in the proposal.
-
-For task 1, we still need to parallelize the non-oblivious external Mergesort, which comes after the data have been obliviously shuffled. This part occupies about 1/4 of the running time in the single threaded implementation.
-
-The task 2 is fully completed. We don't think we can utilize SIMD in other parts of the program.
-
-Task 3 is almost completed. We have been trying to utilizing the enclave memory to the maximum extent to increase parallelism and reduce I/O. Nevertheless, there still seems to be some memory fragmentation issue, which results in imperfect utilization.
-
-Task 4 was meant to be optional, and we haven't started yet.
 
 ### SCHEDULE
 

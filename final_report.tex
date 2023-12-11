@@ -16,7 +16,14 @@
 \end{abstract}
 
 \section{Background}
-\subsection{Background on Oblivious Sorting Algorithms}
+\subsection{Background of Intel SGX}
+Intel SGX is a hardware-based trusted-computing environment that offers privacy and authenticity. It provides a secure enclave, known as the Enclave Page Size (EPC), which is a protected region of memory. The enclave is encrypted and authenticated by the CPU, isolated from the rest of the system, including the operating system and other applications. The CPU ensures that the enclave is not tampered with and that the enclave is not swapped out to disk. 
+
+Intel SGX v1 supports up to 128 MB of enclave memory. Although Intel SGX v2 could in principle support up to 1 TB of enclave memory, the EPC size is still very limited on most consumer-grade CPUs, and even for high-end CPUs, it often takes too long to initialize a large enclave for many applications. Swapping data in or out the enclave requires running heavy-weight cryptographic primitives such as encryption, decryption, and authentication, which is similar to the disk I/O model in the conventional operating systems. Therefore, the algorithm must be carefully designed to minimize the amount of data that needs to be transferred across the enclave boundary. In other words, algorithms should have high arithmetic density.
+
+While SGX allows parallel execution of threads within the enclave, it also poses some limitations. First, SGX thread is mapped directly to logical processor (to avoid the control of OS). Therefore, we cannot create more threads than the available cores, which decreases the flexibility of thread scheduling. Second, while OpenMP has recently become supported in Intel SGX, the functionality is limited, and there are few documentation and examples. For instance, we are not able to turn on dynamic scheduling in {\tt \#pragma omp parallel for} loops. Finally, SGX has a non-negligible impact on the performance of the program, and especially on the total memory bandwidth, as is shown in \cite{sgxv2benchmark, portorshim}. Consequently, the performance of algorithms are likely to be memory-bound at high thread counts.
+
+\subsection{Background of Oblivious Sorting Algorithms}
 Our motivation is to securely outsource data and computation to an untrusted worker equipped with secure processors such as Intel SGX. Although secure processors ensure data privacy through encryption, existing literature reveals that attackers can exploit memory access and page swap patterns during computations to glean information about the data.
 
 Oblivious algorithms provide a verifiable shield to counter such side-channel attacks. This is because ``Obliviousness'' essentially demands that memory access and page swap patterns remain independent of secret data. 
@@ -43,7 +50,7 @@ Our project is based on a prior research paper by Gu et al.~\cite{osort}. The pa
 
 In our continuation of this work, we aim to enhance performance by parallelizing the oblivious sorting algorithm. As a byproduct, we obtain a parallel oblivious random shuffling algorithm, which is also a crucial primitive in oblivious computation.
 
-\subsection{Background on Flex-way Butterfly Oblivious Sort}
+\subsection{Background of Flex-way Butterfly Oblivious Sort}
 To achieve oblivious sorting, Asharov et al.~\cite{bucketsort} proposed the idea to first design an {\it oblivious random bucket assignment}
 algorithm, which randomly assigns each
 input element to one of $O(N/Z)$ output buckets, each of poly-logarithmic
@@ -59,6 +66,8 @@ Flex-way Butterfly Oblivious Sort~\cite{osort} adopts this idea and achieved the
 
 The network relies on an important building block called multi-way {\sf MergeSplit}, which merges elements from $k$ buckets and obliviously splits the real elements into $k$ buckets according to the modulus of their tags. Because each bucket is padded with filler elements, the no bucket will overflow except with negligible probability. Figure \ref{fig:butterfly} demonstrates a 3-level butterfly network that assigns elements to 18 buckets.
 
+Concretely, a solver is applied to determine the optimal parameters of the bucket and butterfly network, which minimizes the total runtime while ensuring an overflow probability within $2^{-60}$.
+
 \begin{figure}[thbp]
     \centering
     \includegraphics[width=\textwidth]{assets/multi-way-butterfly.png}
@@ -66,8 +75,9 @@ The network relies on an important building block called multi-way {\sf MergeSpl
     \label{fig:butterfly}
 \end{figure}
 
+As elements are routed to their destination buckets, bitonic sort~\cite{bitonicsort} is executed within each bucket, filter out the filler elements, and remove the tags. At this stage, we have obtained an oblivious random shuffling algorithm. The final step is to run external merge sort~\cite{knuthbook} on all the real elements and get the final sorted array.
 
-When implementing the algorithm in Intel SGX, we need to consider the memory limitations of the SGX enclave. When transferring data across the boundary of the enclave, we must pay an expensive cost for encryption, decryption, and authentication. Naively emulating the butterfly network level by level would incur an extra I/O overhead of $\Theta(\log N)$. Therefore, we want to route elements through multiple levels each time we fetch them into the enclave, as is demonstrated in Figure \ref{fig:batch}. This optimization significantly increases the arithmetic density of the algorithm and thereby improves performance.
+When implementing the algorithm in Intel SGX, we need to consider the memory limitations of the SGX enclave, since transferring data across the boundary of the enclave requires expensive cryptographic operations. Naively emulating the butterfly network level by level would incur an extra I/O overhead of $\Theta(\log N)$. Therefore, we want to route elements through multiple levels each time we fetch them into the enclave, as is demonstrated in Figure \ref{fig:batch}. This optimization significantly increases the arithmetic density of the algorithm and thereby improves performance. We can also combine multiple stages of the algorithm in each batch to further reduce the I/O cost. For instance, the first level of the external mergesort can be piggybacked with the last level of the butterfly network. Please refer to \cite{osort} for more details.
 
 \begin{figure}[thbp]
     \centering
@@ -76,11 +86,32 @@ When implementing the algorithm in Intel SGX, we need to consider the memory lim
     \label{fig:batch}
 \end{figure}
 
-
-
 \section{Approach}
-\subsection{Identify Parallelism}
+\subsection{Identify Parallelism Abstraction}
+\subsubsection{Parallelism in Butterfly Network}
+Emulating the butterfly network is the most time critical part of the algorithm. We observe that merge-split operations on each butterfly network level are independent of each other, and therefore we can parallelize them. In addition, we can also parallelize the bitonic sort within each bucket. Notice that we can only parallelize the merge-split operations within each batch since we cannot access data outside the enclave directly.
+\subsubsection{Parallelism in Multi-way Merge-Split}
+The multi-way merge-split operation itself is also parallelizable. It involves a recursive divide-and-conquer algorithm, which can be parallelized by OpenMP. However, we may not achieve a perfect theoretical speedup on the first few recursive calls, since the algorithm involves components that are difficult to parallelize (e.g., searching for an Euler tour on a graph). Moreover, for practical implementation, we need to be careful about the parallelism granularity. Setting the granularity too small would incur too much overhead on thread creation and synchronization.
+\subsubsection{Parallelism in External Merge Sort}
+The non-oblivious external merge sort involves two phases. First, we read data into the internal memory (EPC in our case) in batches and sort data in each batch. Second, we merge all the sorted chunks using a priority queue (this step may need to be performed recursively for very large data size and page size).
 
+The first step can be parallelized by running a parallel merge sort in each batch. The priority queue in the second step is more difficult to parallelize. Nevertheless, we can still parallelize the I/O with external memory, as will be elaborated in section \ref{sec:parallelize I/O}.
+
+\subsubsection{Parallelism in I/O}
+\label{sec:parallelize I/O}
+We can parallelize the I/O operations with external memory. Specifically, we can parallelize the cryptographic operations when swapping data between the enclave and the untrusted memory. For streaming data, we can apply prefetching and read-back buffers. In theory, when the data exceeds the available physical RAM, we may also swap data to disk in parallel and overlap communication with computation. However, this is more difficult to achieve since disk I/O requires system calls, which are not supported in SGX. Consequently, we must first make {\tt OCALL}s to switch to the untrusted host and perform asynchronous I/O operations.
+
+\subsubsection{Parallelism in Element Movement}
+Our oblivious sorting algorithm assumes that each element consists of a sorting key and a payload. The payload length is not fixed and can be arbitrarily long. We also assumed an indivisible model~\cite{osortsmallkey}, i.e. we cannot separate the payload from the element or perform any computation on the element (such as running compression algorithms). Thus, the payload must be moved along with the sorting key.
+
+Therefore, for elements with large payload, we may parallelize the data movement via SIMD. One particularly interesting case is the oblivious swap operation, i.e., how to conditionally swap two elements without revealing the condition. It turns out that we can apply SIMD to oblivious swap multiple memory words in parallel, as is elaborated in section \ref{sec:simd}.
+
+\subsection{Implementation}
+\subsubsection{Parallelize Butterfly Network}
+\subsubsection{Parallelize External Merge Sort}
+\subsubsection{Parallelize I/O}
+\subsubsection{Parallelize Element Movement}
+\label{sec:simd}
 % We have successfully parallelized the oblivious shuffling algorithm in Intel SGX using OpenMP and SIMD.
 % Specifically, our key accomplishments include:
 
@@ -104,4 +135,6 @@ When implementing the algorithm in Intel SGX, we need to consider the memory lim
 
 
 \section{Results}
+
+\printbibliography
 \end{document}

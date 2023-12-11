@@ -86,37 +86,36 @@ When implementing the algorithm in Intel SGX, we need to consider the memory lim
     \label{fig:batch}
 \end{figure}
 
-\section{Approach}
-\subsection{Identify Parallelism Abstraction}
-\subsubsection{Parallelism in Butterfly Network}
+\section{Parallelism Abstraction}
+\subsection{Parallelism in Butterfly Network}
 Emulating the butterfly network is the most time critical part of the algorithm. We observe that merge-split operations on each butterfly network level are independent of each other, and therefore we can parallelize them. In addition, we can also parallelize the bitonic sort within each bucket. Notice that we can only parallelize the merge-split operations within each batch since we cannot access data outside the enclave directly.
-\subsubsection{Parallelism in Multi-way Merge-Split}
+\subsection{Parallelism in Multi-way Merge-Split}
 The multi-way merge-split operation itself is also parallelizable. It involves a recursive divide-and-conquer algorithm, which can be parallelized by OpenMP. However, we may not achieve a perfect theoretical speedup on the first few recursive calls, since the algorithm involves components that are difficult to parallelize (e.g., searching for an Euler tour on a graph). Moreover, for practical implementation, we need to be careful about the parallelism granularity. Setting the granularity too small would incur too much overhead on thread creation and synchronization.
-\subsubsection{Parallelism in External Merge Sort}
+\subsection{Parallelism in External Merge Sort}
 The non-oblivious external merge sort involves two phases. First, we read data into the internal memory (EPC in our case) in batches and sort data in each batch. Second, we merge all the sorted chunks using a priority queue (this step may need to be performed recursively for very large data size and page size).
 
 The first step can be parallelized by running a parallel merge sort in each batch. The priority queue in the second step is more difficult to parallelize. Nevertheless, we can still parallelize the I/O with external memory, as will be elaborated in section \ref{sec:parallelize I/O}.
 
-\subsubsection{Parallelism in I/O}
+\subsection{Parallelism in I/O}
 \label{sec:parallelize I/O}
 We can parallelize the I/O operations with external memory. Specifically, we can parallelize the cryptographic operations when swapping data between the enclave and the untrusted memory. For streaming data, we can apply prefetching and read-back buffers. In theory, when the data exceeds the available physical RAM, we may also swap data to disk in parallel and overlap communication with computation. However, this is more difficult to achieve since disk I/O requires system calls, which are not supported in SGX. Consequently, we must first make {\tt OCALL}s to switch to the untrusted host and perform asynchronous I/O operations.
 
-\subsubsection{Parallelism in Element Movement}
+\subsection{Parallelism in Element Movement}
 Our oblivious sorting algorithm assumes that each element consists of a sorting key and a payload. The payload length is not fixed and can be arbitrarily long. We also assumed an indivisible model~\cite{osortsmallkey}, i.e. we cannot separate the payload from the element or perform any computation on the element (such as running compression algorithms). Thus, the payload must be moved along with the sorting key.
 
 Therefore, for elements with large payload, we may parallelize the data movement via SIMD. One particularly interesting case is the oblivious swap operation, i.e., how to conditionally swap two elements without revealing the condition. It turns out that we can apply SIMD to oblivious swap multiple memory words in parallel, as is elaborated in section \ref{sec:simd}.
 
-\subsubsection{Parallelism in Pseudo-Random Numbers Generation}
+\subsection{Parallelism in Pseudo-Random Numbers Generation}
 The algorithm requires a large number of secure pseudo-random numbers in the shuffling phase. We can parallelize the generation of pseudo-random numbers by using multiple pseudo-random number generators.
 
-\subsection{Implementation}
-\subsubsection{Parallelize Butterfly Network}
+\section{Implementation}
+\subsection{Parallelize Butterfly Network}
 We applied the {\tt \#pragma omp parallel for} directive to parallelize the butterfly network in each batch. Since all the merge-split operations on each level have equal workload, we applied static scheduling to divide the workload evenly among threads and avoid the overhead of dynamic scheduling. We also applied the {\tt \#pragma omp parallel for} directive to parallelize all the bitonic sort operations in each batch.
 
 To maximize parallelism, we always fetch as many buckets as possible into the enclave in each batch. We also optimized the parameter solver to ensure that there are enough parallel tasks on each butterfly network level (by reducing bucket size and balancing the merge-split ways on each level.)
 
-\subsubsection{Parallelize External Merge Sort}
-\subsubsection{Parallelize I/O}
+\subsection{Parallelize External Merge Sort}
+\subsection{Parallelize I/O}
 We identify three I/O patterns in the algorithm and used different strategies to parallelize them.
 \begin{itemize}
     \item {\bf Aligned}
@@ -134,7 +133,7 @@ We identify three I/O patterns in the algorithm and used different strategies to
 
     An example of this case is the input and output of the external merge sort. We applied prefetching when reading the data from multiple sorted chunk (notice that the buffer should be shared among all sorted chunks due to the memory limitation), and applied write-back buffers when writing the merged data to external memory.
 \end{itemize}
-\subsubsection{Parallelize Element Movement}
+\subsection{Parallelize Element Movement}
 \label{sec:simd}
 We applied SIMD to parallelize the element movement. Specifically, we used C++ intrinsics to accelerate element-wise oblivious swaps. We incorporated different instruction sets such as AVX512, AVX2, and SSE2 for broader processor compatibility. Specifically, we used the following instructions: 
 
@@ -143,10 +142,12 @@ We applied SIMD to parallelize the element movement. Specifically, we used C++ i
 We observed that the 512-bit wide SIMD operations are actually slower than running two 256-bit operations in series on our processor. This is probably because the 512-bit operations are not fully pipelined due to the limited number of execution ports. Therefore, we used 256-bit operations for the AVX512 instruction set.
 
 Notice that we always pad elements to a multiple of 8 bytes for best performance. Moreover, to minimize the number of SIMD operations, we pad data of size $32k - 8$ bytes to $32k$ bytes, where $k$ is an integer. 
-\subsubsection{Parallelize Pseudo-Random Number Generation}
+
+For other places where we need to move elements, we used the {\tt memcpy} function in the C++ standard library, which is already optimized with SIMD for the processor.
+\subsection{Parallelize Pseudo-Random Number Generation}
 We implemented the pseudo-random number generator with AES counter mode, which features hardware acceleration on our processor. Since the generator is stateful, it is inefficient to use a central pseudo-random generator and synchronize it among multiple threads. Instead, we use multiple pseudo-random generators, each of which is responsible for generating pseudo-random numbers for a subset of the elements.
 
-\subsubsection{Optimize Memory Utilization}
+\subsection{Optimize Memory Utilization}
 We want to minimize the memory consumption of the algorithm to maximize the number of elements that can be processed in each batch. Memory fragmentation hence becomes a major concern. While the original serial implementation has addressed this issue, we need to be more careful when parallelizing the algorithm. One specific problem is that each thread requires a temporary buffer to perform the multi-way merge-split operation, and frequently calling new and delete would worsen the memory fragmentation. Another issue is that the OpenMP library also allocates some memory for thread management in the heap, which is not released until the end of the program and causes fragmentation after the algorithm completes. If we run the algorithm a second time, there might not be enough consecutive memory.
 
 To solve these issues, we allocate a large chunk of memory at the beginning of the sorting function and use it as a memory pool. We then implement a custom memory allocator that allocates memory from the pool and releases memory back to the pool. This way, we can avoid memory fragmentation both during and after the execution of the function.

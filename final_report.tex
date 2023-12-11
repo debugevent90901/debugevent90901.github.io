@@ -19,7 +19,7 @@
 \subsection{Background of Intel SGX}
 Intel SGX is a hardware-based trusted-computing environment that offers privacy and authenticity. It provides a secure enclave, known as the Enclave Page Size (EPC), which is a protected region of memory. The enclave is encrypted and authenticated by the CPU, isolated from the rest of the system, including the operating system and other applications. The CPU ensures that the enclave is not tampered with and that the enclave is not swapped out to disk. 
 
-Intel SGX v1 supports up to 128 MB of enclave memory. Although Intel SGX v2 could in principle support up to 1 TB of enclave memory, the EPC size is still very limited on most consumer-grade CPUs, and even for high-end CPUs, it often takes too long to initialize a large enclave for many applications. Swapping data in or out the enclave requires running heavy-weight cryptographic primitives such as encryption, decryption, and authentication, which is similar to the disk I/O model in the conventional operating systems. Therefore, the algorithm must be carefully designed to minimize the amount of data that needs to be transferred across the enclave boundary. In other words, algorithms should have high arithmetic density.
+Intel SGX v1 supports up to 128 MB of enclave memory. Although Intel SGX v2 could in principle support up to 1 TB of enclave memory, the EPC size is still very limited on most consumer-grade CPUs, and even for high-end CPUs, it often takes too long to initialize a large enclave for many applications. Swapping data in or out the enclave requires running heavy-weight cryptographic primitives such as encryption, decryption, and authentication. Moreover, these cryptographic primitives have a startup cost, which means data should be transferred at the granularity of pages (at least 4 kB). This is similar to the disk I/O model in the conventional operating systems. Therefore, the algorithm must be carefully designed to minimize the amount of data that needs to be transferred across the enclave boundary. In other words, algorithms should have high arithmetic density and good spatial locality.
 
 While SGX allows parallel execution of threads within the enclave, it also poses some limitations. First, SGX thread is mapped directly to logical processor (to avoid the control of OS). Therefore, we cannot create more threads than the available cores, which decreases the flexibility of thread scheduling. Second, while OpenMP has recently become supported in Intel SGX, the functionality is limited, and there are few documentation and examples. For instance, we are not able to turn on dynamic scheduling in {\tt \#pragma omp parallel for} loops. Finally, SGX has a non-negligible impact on the performance of the program, and especially on the total memory bandwidth, as is shown in \cite{sgxv2benchmark, portorshim}. Consequently, the performance of algorithms are likely to be memory-bound at high thread counts.
 
@@ -106,12 +106,50 @@ Our oblivious sorting algorithm assumes that each element consists of a sorting 
 
 Therefore, for elements with large payload, we may parallelize the data movement via SIMD. One particularly interesting case is the oblivious swap operation, i.e., how to conditionally swap two elements without revealing the condition. It turns out that we can apply SIMD to oblivious swap multiple memory words in parallel, as is elaborated in section \ref{sec:simd}.
 
+\subsubsection{Parallelism in Pseudo-Random Numbers Generation}
+The algorithm requires a large number of secure pseudo-random numbers in the shuffling phase. We can parallelize the generation of pseudo-random numbers by using multiple pseudo-random number generators.
+
 \subsection{Implementation}
 \subsubsection{Parallelize Butterfly Network}
+We applied the {\tt \#pragma omp parallel for} directive to parallelize the butterfly network in each batch. Since all the merge-split operations on each level have equal workload, we applied static scheduling to divide the workload evenly among threads and avoid the overhead of dynamic scheduling. We also applied the {\tt \#pragma omp parallel for} directive to parallelize all the bitonic sort operations in each batch.
+
+To maximize parallelism, we always fetch as many buckets as possible into the enclave in each batch. We also optimized the parameter solver to ensure that there are enough parallel tasks on each butterfly network level (by reducing bucket size and balancing the merge-split ways on each level.)
+
 \subsubsection{Parallelize External Merge Sort}
 \subsubsection{Parallelize I/O}
+We identify three I/O patterns in the algorithm and used different strategies to parallelize them.
+\begin{itemize}
+    \item {\bf Aligned}
+    When each thread reads or writes equal chunks of data that is aligned with the encryption blocks. In this case, the threads have no contention on the encryption blocks, and we can directly apply {\tt \#pragma omp parallel for} to parallelize the I/O operations.
+
+    An example of this case is the swapping of intermediate data in the butterfly network (i.e., all the I/O except reading the initial input and writing the shuffled output). We deliberately set the encryption block size to be equal to the bucket size, and make them perfectly aligned. Therefore, the buckets can be copied into or out of the enclave in parallel.
+    \item {\bf Unaligned and Unordered}
+    In this case, each thread reads or writes unequal amount of data or the data is not aligned with the encryption blocks, yet we don't care about the order the data being read or written. In this case, we can initiate multiple readers or writers (we let the number match the available threads), each of which is responsible for a roughly equal sized chunk of data that is aligned with the encryption blocks. Moreover, we maintain a central reader/writer pool manager. Each time a thread wants to read or write data, it first requests a reader/writer from the pool manager. The pool manager then assigns a reader/writer to the thread, if available. The reader/writer then reads or writes data in parallel with other readers/writers. When the reader/writer finishes its job, it returns to the pool manager. When a reader/writer is fully consumed, it is destroyed and the thread requests a new reader/writer from the pool manager. The contention is minimized since synchronization with the pool manager only happens when a task begins or ends and when a reader/writer is created or destroyed.
+
+    An example of this case is the input and output of the shuffling phase, since we cannot assume that the input and output page size align with the algorithmic parameters, and the number of data in each task is not perfectly equal (especially for the output since as bucket has a different number of real elements). On the other hand, we don't care about the order of input and output data in a random shuffling algorithm.
+    \item {\bf Unaligned and Ordered}
+    Finally, we consider the case where each thread reads or writes unequal amount of data or the data is not aligned with the encryption blocks, and we need to read or write data in an ordered and streaming fashion (either one or multiple streams). In this case, we can apply prefetching when reading the data and write-back buffers when writing the data. Since the data is read in a streaming fashion, we can prefetch the data to fill the buffer in parallel. Similarly, we can buffer the data to be written and write them back in parallel when the buffer is full. The buffer size is chosen to be large enough to ensure that the I/O operations are fully parallelized.
+
+    One inefficiency of this approach is that we need an extra copy of the data due to the buffer, and the buffer also consumes some extra EPC space. A single-producer-single-consumer use case is most ideal for this approach to avoid contention on the buffer.
+
+    An example of this case is the input and output of the external merge sort. We applied prefetching when reading the data from multiple sorted chunk (notice that the buffer should be shared among all sorted chunks due to the memory limitation), and applied write-back buffers when writing the merged data to external memory.
+\end{itemize}
 \subsubsection{Parallelize Element Movement}
 \label{sec:simd}
+We applied SIMD to parallelize the element movement. Specifically, we used C++ intrinsics to accelerate element-wise oblivious swaps. We incorporated different instruction sets such as AVX512, AVX2, and SSE2 for broader processor compatibility. Specifically, we used the following instructions: 
+
+{\tt \_mm256\_mask\_blend\_pd}, {\tt \_mm256\_set1\_epi32}, {\tt \_mm256\_and\_si256},\\ {\tt \_mm256\_xor\_si256}, {\tt \_mm\_mask\_blend\_pd}, {\tt \_mm\_and\_si128}, {\tt \_mm\_xor\_si128}. 
+
+We observed that the 512-bit wide SIMD operations are actually slower than running two 256-bit operations in series on our processor. This is probably because the 512-bit operations are not fully pipelined due to the limited number of execution ports. Therefore, we used 256-bit operations for the AVX512 instruction set.
+
+Notice that we always pad elements to a multiple of 8 bytes for best performance. Moreover, to minimize the number of SIMD operations, we pad data of size $32k - 8$ bytes to $32k$ bytes, where $k$ is an integer. 
+\subsubsection{Parallelize Pseudo-Random Number Generation}
+We implemented the pseudo-random number generator with AES counter mode, which features hardware acceleration on our processor. Since the generator is stateful, it is inefficient to use a central pseudo-random generator and synchronize it among multiple threads. Instead, we use multiple pseudo-random generators, each of which is responsible for generating pseudo-random numbers for a subset of the elements.
+
+\subsubsection{Optimize Memory Utilization}
+We want to minimize the memory consumption of the algorithm to maximize the number of elements that can be processed in each batch. Memory fragmentation hence becomes a major concern. While the original serial implementation has addressed this issue, we need to be more careful when parallelizing the algorithm. One specific problem is that each thread requires a temporary buffer to perform the multi-way merge-split operation, and frequently calling new and delete would worsen the memory fragmentation. Another issue is that the OpenMP library also allocates some memory for thread management in the heap, which is not released until the end of the program and causes fragmentation after the algorithm completes. If we run the algorithm a second time, there might not be enough consecutive memory.
+
+To solve these issues, we allocate a large chunk of memory at the beginning of the sorting function and use it as a memory pool. We then implement a custom memory allocator that allocates memory from the pool and releases memory back to the pool. This way, we can avoid memory fragmentation both during and after the execution of the function.
 % We have successfully parallelized the oblivious shuffling algorithm in Intel SGX using OpenMP and SIMD.
 % Specifically, our key accomplishments include:
 

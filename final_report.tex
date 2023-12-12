@@ -114,6 +114,8 @@ We implemented the algorithm based on the open-source code provided by the autho
 \subsection{Parallelize Butterfly Network}
 We applied the {\tt \#pragma omp parallel for} directive to parallelize the butterfly network in each batch. Since all the merge-split operations on each level have equal workload, we applied static scheduling to divide the workload evenly among threads and avoid the overhead of dynamic scheduling. We also applied the {\tt \#pragma omp parallel for} directive to parallelize all the bitonic sort operations in each batch.
 
+One modification we made to the original code is to change the butterfly routing schedule from recursive to iterative. This might slightly hurt the cache locality of a serial implementation, but it is more efficient for parallel execution using OpenMP according to our experiment.
+
 To maximize parallelism, we always fetch as many buckets as possible into the enclave in each batch. We also optimized the parameter solver to ensure that there are enough parallel tasks on each butterfly network level (by reducing bucket size and balancing the merge-split ways on each level.)
 
 \subsection{Parallelize External Merge Sort}
@@ -131,9 +133,9 @@ We identify three I/O patterns in the algorithm and used different strategies to
     \item {\bf Unaligned and Ordered}
     Finally, we consider the case where each thread reads or writes unequal amount of data or the data is not aligned with the encryption blocks, and we need to read or write data in an ordered and streaming fashion (either one or multiple streams). In this case, we can apply prefetching when reading the data and write-back buffers when writing the data. Since the data is read in a streaming fashion, we can prefetch the data to fill the buffer in parallel. Similarly, we can buffer the data to be written and write them back in parallel when the buffer is full. The buffer size is chosen to be large enough to ensure that the I/O operations are fully parallelized.
 
-    One inefficiency of this approach is that we need an extra copy of the data due to the buffer, and the buffer also consumes some extra EPC space. A single-producer-single-consumer use case is most ideal for this approach to avoid contention on the buffer.
+    One inefficiency of this approach is that we need an extra copy of the data due to the buffer, and the buffer also consumes some extra EPC space. 
 
-    An example of this case is the input and output of the external merge sort. We applied prefetching when reading the data from multiple sorted chunk (notice that the buffer should be shared among all sorted chunks due to the memory limitation), and applied write-back buffers when writing the merged data to external memory.
+    An example of this case is the input and output of the external merge sort. We applied prefetching when reading the data from multiple sorted chunk, and applied write-back buffers when writing the merged data to external memory.
 \end{itemize}
 \subsection{Parallelize Element Movement}
 \label{sec:simd}

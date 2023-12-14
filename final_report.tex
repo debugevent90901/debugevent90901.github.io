@@ -114,7 +114,7 @@ We implemented the algorithm based on the open-source code provided by the autho
 \subsection{Parallelize Butterfly Network}
 We applied the {\tt \#pragma omp parallel for} directive to parallelize the butterfly network in each batch. Since all the merge-split operations on each level have equal workload, we applied static scheduling to divide the workload evenly among threads and avoid the overhead of dynamic scheduling. We also applied the {\tt \#pragma omp parallel for} directive to parallelize all the bitonic sort operations in each batch.
 
-One modification we made to the original code is to change the butterfly routing schedule from recursive to iterative. This might slightly hurt the cache locality of a serial implementation, but it is more efficient for parallel execution using OpenMP according to our experiment.
+One modification we made to the original code is to change the butterfly routing schedule from recursive to iterative. In the serial implementation, the butterfly network is divided into two smaller butterfly networks and a merge pass. While the divide and conquer scheduling slightly increases the cache locality of the algorithm, our experiment shows that OpenMP in SGX cannot fully exploit the parallelism in such a recursive program. Therefore, we instead 
 
 To maximize parallelism, we always fetch as many buckets as possible into the enclave in each batch. We also optimized the parameter solver to ensure that there are enough parallel tasks on each butterfly network level (by reducing bucket size and balancing the merge-split ways on each level.)
 

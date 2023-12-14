@@ -12,3 +12,7 @@ vendor
 *.log
 *.run.xml
 *.synctex.gz
+*.nav
+*.out
+*.snm
+*.toc

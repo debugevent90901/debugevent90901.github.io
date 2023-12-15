@@ -110,7 +110,15 @@ The algorithm requires a large number of secure pseudo-random numbers in the shu
 
 \section{Implementation}
 \subsection{Overview}
-We implemented the algorithm based on the open-source code provided by the authors of the original paper~\cite{osort}, available at \url{https://github.com/odslib/oblsort}. The code is written in C++ and uses the Intel SGX SDK. Below, we describe our modifications to make the program parallel, as well as the major optimizations. While we test the code on a high-end server equipped with 36 cores, 512GB EPC cache and 1TB RAM, our implementation also works for the consumer-grade processors, as well as the virtual machines provided by cloud service providers, which have more limited hardware resources.
+We implemented the algorithm based on the open-source code provided by the authors of the original paper~\cite{osort}, available at \url{https://github.com/odslib/oblsort}. The code is written in C++ and uses the Intel SGX SDK. Below, we describe our modifications to make the program parallel, as well as the major optimizations. While we test the code on a high-end server equipped with 36 cores, 512GB EPC cache and 1TB RAM, our implementation also works for the consumer-grade processors, as well as the virtual machines provided by cloud service providers, which have more limited hardware resources. Figure \ref{fig:parosort} shows a high-level diagram of our implementation on a toy example.
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=0.72\textwidth]{assets/parosort.png}
+    \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread. Colorful components are multi-threaded.}
+    \label{fig:parosort}
+  \end{figure}
+
 \subsection{Parallelize Butterfly Network}
 We applied the {\tt \#pragma omp parallel for} directive to parallelize the butterfly network in each batch. Since all the merge-split operations on each level have equal workload, we applied static scheduling to divide the workload evenly among threads and avoid the overhead of dynamic scheduling. We also applied the {\tt \#pragma omp parallel for} directive to parallelize all the bitonic sort operations in each batch.
 

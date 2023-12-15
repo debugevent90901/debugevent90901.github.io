@@ -26,7 +26,7 @@
       \maketitle
       \begin{block}{Abstract}
         % Your abstract text here
-        Oblivious algorithms have been a popular research topic in cybersecurity due to its resistance to side channel attacks. We implemented a parallel oblivious sorting algorithm in C++ using Intel SGX Enclave, a hardware-based trusted-computing environment. We leveraged OpenMP to achieve multithreading on a 36-core CPU and further improved parallelism through SIMD. We parallelized both the in-enclave computation and the communication with untrusted memory. Our implementation achieves a speedup of 7.5x over the original serial implementation with 8 threads and 16x with 32 threads.
+        Oblivious algorithms have been a popular research topic in cybersecurity due to its resistance to side channel attacks. We implemented a parallel oblivious sorting algorithm in C++ using Intel SGX Enclave, a hardware-based trusted-computing environment. We leveraged OpenMP to achieve multithreading on a 36-core CPU and further improved parallelism through SIMD. We parallelized both the in-enclave computation and the communication with untrusted memory. Our implementation achieves a speedup of 3.5x over the original serial implementation with 8 threads and 4.2x with 32 threads. As a byproduct, we also obtained an efficient parallel oblivious random shuffling algorithm, which features and 14x speedup with 32 threads.
       \end{block}
 
       \begin{block}{Background of Intel SGX}
@@ -50,63 +50,31 @@
 
     \end{column}
 
+    % Third column
+  \begin{column}{.25\linewidth}
+  \begin{block}{Parallel Oblivious Sorting Implementation Overview}
+    \end{block}
+    \begin{figure}
+      \includegraphics[width=\linewidth]{assets/parosort.png}
+      \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread. Colorful components are multi-threaded.}
+    \end{figure}
+  \end{column}
+
     % Second column
-    % \begin{column}{.30\linewidth}
-
-    %   \begin{block}{Parallelism Abstraction}
-    %     \begin{itemize}
-    %       \item Across merge-split task in each batch
-    %       \item Within each merge-split task
-    %       \item Parallel External Merge Sort
-    %       \item Parallel I/O
-    %     \end{itemize}
-    %   \end{block}
-
-    %   \begin{block}{Parallelism in I/O}
-    %     \begin{itemize}
-    %       \item \textbf{Parallelism in I/O:} Identified three I/O patterns and used different strategies for parallelization.
-    %       \item \textbf{Parallelism in Element Movement:} Utilized SIMD for parallelizing data movement, especially for elements with large payloads.
-    %       \item \textbf{Parallelism in Pseudo-Random Numbers Generation:} Parallel generation of secure pseudo-random numbers using multiple generators.
-    %     \end{itemize}
-    %   \end{block}
-
-    
-
-    %   \begin{block}{Implementation}
-    %     \begin{itemize}
-    %       \item \textbf{Overview:} Implemented algorithm based on open-source code [5]. Modifications for parallelism and optimizations for high-end servers and consumer-grade processors.
-    %       \item \textbf{Parallelize Butterfly Network:} Applied OpenMP directives for parallelization, changed routing schedule to iterative, and optimized parameters for maximum parallelism.
-    %       \item \textbf{Parallelize I/O:} Identified three I/O patterns and used different strategies for parallelization.
-    %       \item \textbf{Parallelize Element Movement:} Utilized SIMD for parallelizing element movement, applying C++ intrinsics with AVX512, AVX2, and SSE2 instruction sets.
-    %       \item \textbf{Parallelize Pseudo-Random Number Generation:} Implemented multiple pseudo-random number generators for parallel generation.
-    %       \item \textbf{Optimize Memory Utilization:} Addressed memory fragmentation concerns by allocating a memory pool and implementing a custom allocator.
-    %     \end{itemize}
-    %   \end{block}
-
-    % \end{column}
 
   \begin{column}{.30\linewidth}
-    % \begin{figure}
-    %   \includegraphics[width=0.6\linewidth]{assets/speedup_shuffle.png}
-    %   \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread. Colorful components are multi-threaded.}
-    % \end{figure}
 
-    % \begin{figure}
-    %   \includegraphics[width=0.6\linewidth]{assets/simd_shuffle.png}
-    %   \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread. Colorful components are multi-threaded.}
-    % \end{figure}
-    % Speedup Diagrams for separtate optimizations:
     \begin{block}{Speedup Diagrams for separtate optimizations}
     \end{block}
     \begin{figure}[h]
         \centering
-        \begin{minipage}{0.48\linewidth}
-            \includegraphics[width=\linewidth]{assets/speedup_shuffle.png}
-            \caption{Speedup for Oblivious Shuffling}
-        \end{minipage}
-        \hfill
-        \begin{minipage}{0.48\linewidth}
-            \includegraphics[width=\linewidth]{assets/simd_shuffle.png}
+        % \begin{minipage}{0.48\linewidth}
+        %     \includegraphics[width=\linewidth]{assets/speedup_shuffle.png}
+        %     \caption{Speedup for Oblivious Shuffling}
+        % \end{minipage}
+        % \hfill
+        \begin{minipage}{0.8\linewidth}
+            \includegraphics[width=\linewidth]{assets/shuffle.png}
             \caption{Runtime Improvement Through SIMD}
         \end{minipage}
     \end{figure}
@@ -119,17 +87,29 @@
         \end{minipage}
         \hfill
         \begin{minipage}{0.48\linewidth}
-            \includegraphics[width=\linewidth]{assets/io.png}
+            \includegraphics[width=\linewidth]{assets/sort.png}
             \caption{Speedup using parallel sorting compared to std::sort}
         \end{minipage} \\ \\  \\
     \end{figure}
     \vspace{50}
-    \begin{block}{Overall Speedup Diagram for Our Parallel K-Way Butterfly Networking Oblivious Sorting}
+    \begin{block}{Overall Speedup Diagram for Our Parallel K-Way Butterfly Networking Oblivious Sorting/Shuffling}
     \end{block}
     % Overall Speedup Diagram for our Parallel K-Way Butterfly Networking Oblivious Sorting \\
-    \begin{figure}
-      \includegraphics[width=0.8\linewidth]{assets/overall.png}
-      \caption{The Overall Speedup of Oblivious Sorting Algorithm}
+    % \begin{figure}
+    %   \includegraphics[width=0.8\linewidth]{assets/speedup_sort.png}
+    %   \caption{The Overall Speedup of Oblivious Sorting Algorithm}
+    % \end{figure}
+    \begin{figure}[h]
+        \centering
+        \begin{minipage}{0.48\linewidth}
+            \includegraphics[width=\linewidth]{assets/speedup_shuffle.png}
+            \caption{Speedup for Oblivious Shuffling}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{0.48\linewidth}
+            \includegraphics[width=\linewidth]{assets/speedup_sort.png}
+            \caption{Speedup for Oblivious Sorting}
+        \end{minipage}
     \end{figure}
 
     % \begin{figure}
@@ -138,14 +118,6 @@
     % \end{figure}
   \end{column}
   
-
-  % Third column
-  \begin{column}{.25\linewidth}
-    \begin{figure}
-      \includegraphics[width=\linewidth]{assets/parosort.png}
-      \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread. Colorful components are multi-threaded.}
-    \end{figure}
-  \end{column}
   \end{columns}
 \end{frame}
 \end{document}

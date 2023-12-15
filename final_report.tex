@@ -2,6 +2,7 @@
 \usepackage{graphicx} % Required for inserting images
 \usepackage[sortcites=true]{biblatex}
 \usepackage{color}
+\usepackage{subcaption}
 \addbibresource{final.bib}
 \title{Parallel Oblivious Sorting in SGX Enclave}
 \author{Tianyao Gu, Tian Xie}
@@ -12,7 +13,7 @@
 \maketitle
 
 \begin{abstract}
-    Oblivious algorithms have been a popular research topic in cybersecurity as it guarantees a simulatable memory access pattern and thereby provably resists side channel attacks. We implemented a parallel oblivious sorting algorithm in C++ using Intel SGX Enclave, a hardware-based trusted-computing environment offering privacy and authenticity. We leveraged OpenMP to achieve multithreading on a 36-core CPU, and further improves parallelism through SIMD. We increased the arithmetic density of the algorithm to make it efficient in an external memory model. We also parallelized data swapping across the enclave boundary through prefetching and write back buffers. We reduced memory fragmentation of the program to minimize the consumption of Enclave Page Cache. Our implementation of the oblivious sorting algorithm achieves a speedup of {\color{blue} tofill}x over the original serial implementation with 8 threads, and {\color{blue} tofill}x with 32 threads. As a byproduct, we also obtained a parallel oblivious random shuffling algorithm, which features {\color{blue} tofill}x speedup with 8 threads, and {\color{blue} tofill}x speedup with 32 threads.
+    Oblivious algorithms have been a popular research topic in cybersecurity as it guarantees a simulatable memory access pattern and thereby provably resists side channel attacks. We implemented a parallel oblivious sorting algorithm in C++ using Intel SGX Enclave, a hardware-based trusted-computing environment offering privacy and authenticity. We leveraged OpenMP to achieve multithreading on a 36-core CPU, and further improves parallelism through SIMD. We increased the arithmetic density of the algorithm to make it efficient in an external memory model. We also parallelized data swapping across the enclave boundary through prefetching and write back buffers. We reduced memory fragmentation of the program to minimize the consumption of Enclave Page Cache. Our implementation of the oblivious sorting algorithm achieves a speedup of {\color{blue} 3.5}x over the original serial implementation with 8 threads, and {\color{blue} 4.2}x with 32 threads. As a byproduct, we also obtained a parallel oblivious random shuffling algorithm, which features {\color{blue} 7.5}x speedup with 8 threads, and {\color{blue} 14}x speedup with 32 threads.
 \end{abstract}
 
 \section{Background}
@@ -201,38 +202,70 @@ frequency. The processor supports Intel SGX v2 and up to 512 GB of EPC cache. Ne
 We validate the correctness of our program via unit testing, and evaluated its performance at different thread counts, input size and EPC size.
 
 \subsection{Speedup Results}
-% \newpage
-% \subsubsection{Speedup Diagrams for Separate Optimizations}
-\begin{figure}[htbp]
+\begin{figure}[h]
     \centering
-      \includegraphics[width=\linewidth]{assets/speedup_shuffle.png}
-      \caption{Speedup Diagram of parallel oblivious shuffling}
-    \end{figure}
+    \begin{subfigure}[b]{0.3\linewidth}
+        \includegraphics[width=\linewidth]{assets/io.png}
+        \caption{Speedup Diagram for Multi-threaded I/O}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\linewidth}
+        \includegraphics[width=\linewidth]{assets/sort.png}
+        \caption{Speedup Diagram for Parallel Sorting}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.3\linewidth}
+        \includegraphics[width=\linewidth]{assets/simd_shuffle.png}
+        \caption{Speedup Diagram for SIMD}
+    \end{subfigure}
+    \caption{Speedup Diagrams for Separtate Optimizations}
+    \vspace{1cm}
+    \begin{subfigure}[b]{0.45\linewidth}
+        \includegraphics[width=\linewidth]{assets/speedup_sort.png}
+        \caption{Overall Speedup for Parallel Oblivious Sorting}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[b]{0.45\linewidth}
+        \includegraphics[width=\linewidth]{assets/speedup_shuffle.png}
+        \caption{Overall Speedup for Parallel Oblivious Shuffling}
+    \end{subfigure}
+    \caption{Speedup Diagrams for Overall Performance}
+\end{figure}
 
-    \begin{figure}[htbp]
-    \centering
-      \includegraphics[width=\linewidth]{assets/simd_shuffle.png}
-      \caption{Speedup Diagram with SIMD Enabled}
-    \end{figure}
+% \begin{figure}[h]
+%     \centering
+%     \begin{subfigure}[b]{0.45\linewidth}
+%         \includegraphics[width=\linewidth]{assets/speedup_sort.png}
+%         \caption{Overall Speedup for Parallel Oblivious Sorting}
+%     \end{subfigure}
+%     \hfill
+%     \begin{subfigure}[b]{0.45\linewidth}
+%         \includegraphics[width=\linewidth]{assets/speedup_shuffle.png}
+%         \caption{Overall Speedup for Parallel Oblivious Shuffling}
+%     \end{subfigure}
+%     \caption{ccc}
+% \end{figure}
 
-\begin{figure}[htbp]
-\centering
-      \includegraphics[width=\linewidth]{assets/io.png}
-      \caption{Speedup Diagram for External MergeSort with Multi-threaded I/O operations}
-    \end{figure}
+Specifically, in Figure 4: Diagram (a) shows the speedup of external mergesort with multi-threaded I/O operations, i.e., prefetch reader and write-back writer. Diagram (b) shows the speedup of the parallel sorting algorithms we implemented over std::sort in C++ standard template library. Diagram (c) represents shows the speedup with SIMD enabled. 
 
-    \begin{figure}[htbp]
-    \centering
-      \includegraphics[width=\linewidth]{assets/sorting.png}
-      \caption{Speedup Diagram for Specific Parallel Sorting Algorithms We Adopted in Oblivious Sorting}
-    \end{figure}
-    
-% \subsubsection{Overall Speedup for Parallel K-Way Butterfly Networking Oblivious Sorting}
-\begin{figure}[htbp]
-\centering
-      \includegraphics[width=\linewidth]{assets/overall.png}
-      \caption{Overall Speedup for Parallel K-Way Butterfly Networking Oblivious Sorting}
-    \end{figure}
+\subsection{Performance Analysis}
+Our implementation achieves a speedup of 3.5x over the original serial implementation with 8 threads and 4.2x with 32 threads.
+\subsubsection{Memory Bandwidth}
+In the execution of our project, we identified that the primary limiting factor for overall speedup is not computational resources but memory bandwidth constraints. This bottleneck arises primarily due to the operational dynamics within the Enclave environment. Specifically, the program, when executed in the Enclave, necessitates frequent paging between the enclave and the host operating system. This requirement becomes particularly pronounced when managing large input datasets, as it demands substantial memory bandwidth, leading to reduced processing speed.
+
+Additionally, a significant aspect that exacerbates this bottleneck is the encryption and decryption process. Every data transfer into and out of the Enclave undergoes this security protocol, further impeding the speed.
+
+To quantitatively assess this limitation, we initially developed and deployed an idealized parallel program within the Enclave. This program was designed such that each thread independently executed the standard sort algorithm (std::sort) without any inter-thread communication. The performance analysis of this setup revealed a substantial speedup — 15.7 times with 32 threads. This empirical evidence underscores the fact that the primary constraint is not rooted in computational capability but is instead attributable to the limited memory bandwidth available in our Enclave-based setup.
+
+\subsubsection{Thread Management Overhead}
+In our implementation, the overhead associated with thread management is a significant concern. This overhead encompasses two main aspects: the creation of parallel regions and the synchronization of threads. Despite utilizing OpenMP, which is known for its lightweight management of multi-threading, the overhead remains considerably high.
+
+To mitigate this issue, we have undertaken extensive efforts aimed at optimizing the overhead. Our approach involves strategically declaring parallel regions at higher function levels and ensuring their reuse. This strategy contrasts with the less efficient method of repeatedly creating parallel regions within frequently called helper functions. By adopting this higher-level approach for declaring parallel regions, we aim to streamline thread management and minimize the associated overhead, thereby enhancing the overall efficiency of our implementation.
+
+\subsubsection{Level of Parallelism in External MergeSort}
+Finally, it is evident that our implementation of the external mergesort algorithm exhibits a notable lack of parallelism. We employed a priority queue-based approach for this algorithm. However, we consciously opted not to parallelize it due to the inherent complexities associated with such an endeavor.
+
+While there exist non-oblivious external parallel sorting algorithms that are available as open-source resources, we chose to develop our own version. This decision was driven by our commitment to maintaining the integrity and completeness of the entire oblivious sorting project. However, it's important to acknowledge that this approach has had a quantifiable impact on our system's performance.
 
 \newpage
 \printbibliography

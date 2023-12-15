@@ -41,7 +41,7 @@
 
       \begin{block}{Background of Flex-way Butterfly Oblivious Sort}
         % Background of Flex-way Butterfly Oblivious Sort text here
-        To achieve oblivious sorting, Flex-way Butterfly Oblivious Sort applies a random shuffling algorithm followed by a non-oblivious comparison-based sorting algorithm. The key component of the shuffling algorithm is a multi-way butterfly network. The algorithm ensures negligible overflow probability and achieves optimal complexity in terms of both computation and I/O.
+        To achieve oblivious sorting, Flex-way Butterfly Oblivious Sort applies a random shuffling algorithm followed by a non-oblivious comparison-based sorting algorithm. The key component of the shuffling algorithm is a multi-way butterfly network, emulated with a building block called Merge-split. The algorithm ensures negligible overflow probability and achieves optimal complexity in terms of both computation and I/O.
         \begin{figure}
           \includegraphics[width=\linewidth]{assets/multi-way-butterfly.png}
           \caption{A Multi-way Butterfly Network}
@@ -55,9 +55,10 @@
 
       \begin{block}{Parallelism Abstraction}
         \begin{itemize}
-          \item \textbf{Parallelism in Butterfly Network:} Emulating the butterfly network is time-critical. Merge-split operations and bitonic sort within each batch are parallelized to enhance performance.
-          \item \textbf{Parallelism in Multi-way Merge-Split:} The multi-way merge-split operation itself is parallelizable using OpenMP, with considerations for theoretical speedup and practical granularity.
-          \item \textbf{Parallelism in External Merge Sort:} Parallelization in reading and sorting data in each batch, with challenges in parallelizing the priority queue.
+          \item Across merge-split task in each batch
+          \item Within each merge-split task
+          \item Parallel External Merge Sort
+          \item Parallel I/O
         \end{itemize}
       \end{block}
 
@@ -69,10 +70,7 @@
         \end{itemize}
       \end{block}
 
-    \end{column}
-
-    % Third column
-    \begin{column}{.30\linewidth}
+    
 
       \begin{block}{Implementation}
         \begin{itemize}
@@ -86,7 +84,15 @@
       \end{block}
 
     \end{column}
+  
 
+  % Third column
+  \begin{column}{.30\linewidth}
+    \begin{figure}
+      \includegraphics[width=\linewidth]{assets/parosort.png}
+      \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread.}
+    \end{figure}
+  \end{column}
   \end{columns}
 \end{frame}
 \end{document}

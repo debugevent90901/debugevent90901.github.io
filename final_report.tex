@@ -88,7 +88,7 @@ When implementing the algorithm in Intel SGX, we need to consider the memory lim
 
 \section{Parallelism Abstraction}
 \subsection{Parallelism in Butterfly Network}
-Emulating the butterfly network is the most time critical part of the algorithm. We observe that merge-split operations on each butterfly network level are independent of each other, and therefore we can parallelize them. In addition, we can also parallelize the bitonic sort within each bucket. Notice that we can only parallelize the merge-split operations within each batch since we cannot access data outside the enclave directly.
+Emulating the butterfly network is the most time critical part of the algorithm. We observe that merge-split operations on each butterfly network level are independent of each other, and therefore we can parallelize them. In addition, we can also parallelize allt the bitonic sort instances at the end of the shuffling phase. Notice that we can only perform parallelization within each batch since threads cannot access data outside the enclave directly.
 \subsection{Parallelism in Multi-way Merge-Split}
 The multi-way merge-split operation itself is also parallelizable. It involves a recursive divide-and-conquer algorithm, which can be parallelized by OpenMP. However, we may not achieve a perfect theoretical speedup on the first few recursive calls, since the algorithm involves components that are difficult to parallelize (e.g., searching for an Euler tour on a graph). Moreover, for practical implementation, we need to be careful about the parallelism granularity. Setting the granularity too small would incur too much overhead on thread creation and synchronization.
 \subsection{Parallelism in External Merge Sort}

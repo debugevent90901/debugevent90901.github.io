@@ -22,7 +22,7 @@
   \begin{columns}[t]
 
     % First column
-    \begin{column}{.30\linewidth}
+    \begin{column}{.25\linewidth}
       \maketitle
       \begin{block}{Abstract}
         % Your abstract text here
@@ -51,43 +51,96 @@
     \end{column}
 
     % Second column
-    \begin{column}{.30\linewidth}
+    % \begin{column}{.30\linewidth}
 
-      \begin{block}{Parallelism Abstraction}
-        \begin{itemize}
-          \item Across merge-split task in each batch
-          \item Within each merge-split task
-          \item Parallel External Merge Sort
-          \item Parallel I/O
-        \end{itemize}
-      \end{block}
+    %   \begin{block}{Parallelism Abstraction}
+    %     \begin{itemize}
+    %       \item Across merge-split task in each batch
+    %       \item Within each merge-split task
+    %       \item Parallel External Merge Sort
+    %       \item Parallel I/O
+    %     \end{itemize}
+    %   \end{block}
 
-      \begin{block}{Parallelism in I/O}
-        \begin{itemize}
-          \item \textbf{Parallelism in I/O:} Identified three I/O patterns and used different strategies for parallelization.
-          \item \textbf{Parallelism in Element Movement:} Utilized SIMD for parallelizing data movement, especially for elements with large payloads.
-          \item \textbf{Parallelism in Pseudo-Random Numbers Generation:} Parallel generation of secure pseudo-random numbers using multiple generators.
-        \end{itemize}
-      \end{block}
+    %   \begin{block}{Parallelism in I/O}
+    %     \begin{itemize}
+    %       \item \textbf{Parallelism in I/O:} Identified three I/O patterns and used different strategies for parallelization.
+    %       \item \textbf{Parallelism in Element Movement:} Utilized SIMD for parallelizing data movement, especially for elements with large payloads.
+    %       \item \textbf{Parallelism in Pseudo-Random Numbers Generation:} Parallel generation of secure pseudo-random numbers using multiple generators.
+    %     \end{itemize}
+    %   \end{block}
 
     
 
-      \begin{block}{Implementation}
-        \begin{itemize}
-          \item \textbf{Overview:} Implemented algorithm based on open-source code [5]. Modifications for parallelism and optimizations for high-end servers and consumer-grade processors.
-          \item \textbf{Parallelize Butterfly Network:} Applied OpenMP directives for parallelization, changed routing schedule to iterative, and optimized parameters for maximum parallelism.
-          \item \textbf{Parallelize I/O:} Identified three I/O patterns and used different strategies for parallelization.
-          \item \textbf{Parallelize Element Movement:} Utilized SIMD for parallelizing element movement, applying C++ intrinsics with AVX512, AVX2, and SSE2 instruction sets.
-          \item \textbf{Parallelize Pseudo-Random Number Generation:} Implemented multiple pseudo-random number generators for parallel generation.
-          \item \textbf{Optimize Memory Utilization:} Addressed memory fragmentation concerns by allocating a memory pool and implementing a custom allocator.
-        \end{itemize}
-      \end{block}
+    %   \begin{block}{Implementation}
+    %     \begin{itemize}
+    %       \item \textbf{Overview:} Implemented algorithm based on open-source code [5]. Modifications for parallelism and optimizations for high-end servers and consumer-grade processors.
+    %       \item \textbf{Parallelize Butterfly Network:} Applied OpenMP directives for parallelization, changed routing schedule to iterative, and optimized parameters for maximum parallelism.
+    %       \item \textbf{Parallelize I/O:} Identified three I/O patterns and used different strategies for parallelization.
+    %       \item \textbf{Parallelize Element Movement:} Utilized SIMD for parallelizing element movement, applying C++ intrinsics with AVX512, AVX2, and SSE2 instruction sets.
+    %       \item \textbf{Parallelize Pseudo-Random Number Generation:} Implemented multiple pseudo-random number generators for parallel generation.
+    %       \item \textbf{Optimize Memory Utilization:} Addressed memory fragmentation concerns by allocating a memory pool and implementing a custom allocator.
+    %     \end{itemize}
+    %   \end{block}
 
-    \end{column}
+    % \end{column}
+
+  \begin{column}{.30\linewidth}
+    % \begin{figure}
+    %   \includegraphics[width=0.6\linewidth]{assets/speedup_shuffle.png}
+    %   \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread. Colorful components are multi-threaded.}
+    % \end{figure}
+
+    % \begin{figure}
+    %   \includegraphics[width=0.6\linewidth]{assets/simd_shuffle.png}
+    %   \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread. Colorful components are multi-threaded.}
+    % \end{figure}
+    % Speedup Diagrams for separtate optimizations:
+    \begin{block}{Speedup Diagrams for separtate optimizations}
+    \end{block}
+    \begin{figure}[h]
+        \centering
+        \begin{minipage}{0.48\linewidth}
+            \includegraphics[width=\linewidth]{assets/speedup_shuffle.png}
+            \caption{Speedup for Oblivious Shuffling}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{0.48\linewidth}
+            \includegraphics[width=\linewidth]{assets/simd_shuffle.png}
+            \caption{Runtime Improvement Through SIMD}
+        \end{minipage}
+    \end{figure}
+
+    \begin{figure}[h]
+        \centering
+        \begin{minipage}{0.48\linewidth}
+            \includegraphics[width=\linewidth]{assets/sorting.png}
+            \caption{Speedup for External MergeSort with Multi-threaded I/O}
+        \end{minipage}
+        \hfill
+        \begin{minipage}{0.48\linewidth}
+            \includegraphics[width=\linewidth]{assets/io.png}
+            \caption{Speedup using parallel sorting compared to std::sort}
+        \end{minipage} \\ \\  \\
+    \end{figure}
+    \vspace{50}
+    \begin{block}{Overall Speedup Diagram for our Parallel K-Way Butterfly Networking Oblivious Sorting}
+    \end{block}
+    % Overall Speedup Diagram for our Parallel K-Way Butterfly Networking Oblivious Sorting \\
+    \begin{figure}
+      \includegraphics[width=0.8\linewidth]{assets/speedup_shuffle.png}
+      \caption{The Overall Speedup of Oblivious Sorting Algorithm}
+    \end{figure}
+
+    % \begin{figure}
+    %   \includegraphics[width=0.6\linewidth]{assets/sorting.png}
+    %   \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread. Colorful components are multi-threaded.}
+    % \end{figure}
+  \end{column}
   
 
   % Third column
-  \begin{column}{.30\linewidth}
+  \begin{column}{.25\linewidth}
     \begin{figure}
       \includegraphics[width=\linewidth]{assets/parosort.png}
       \caption{Diagram of Parallel Oblivious Sort on a toy example. Each color represents a thread. Colorful components are multi-threaded.}

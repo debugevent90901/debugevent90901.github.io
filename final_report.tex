@@ -201,6 +201,39 @@ frequency. The processor supports Intel SGX v2 and up to 512 GB of EPC cache. Ne
 We validate the correctness of our program via unit testing, and evaluated its performance at different thread counts, input size and EPC size.
 
 \subsection{Speedup Results}
+% \newpage
+% \subsubsection{Speedup Diagrams for Separate Optimizations}
+\begin{figure}[htbp]
+    \centering
+      \includegraphics[width=\linewidth]{assets/speedup_shuffle.png}
+      \caption{Speedup Diagram of parallel oblivious shuffling}
+    \end{figure}
 
+    \begin{figure}[htbp]
+    \centering
+      \includegraphics[width=\linewidth]{assets/simd_shuffle.png}
+      \caption{Speedup Diagram with SIMD Enabled}
+    \end{figure}
+
+\begin{figure}[htbp]
+\centering
+      \includegraphics[width=\linewidth]{assets/io.png}
+      \caption{Speedup Diagram for External MergeSort with Multi-threaded I/O operations}
+    \end{figure}
+
+    \begin{figure}[htbp]
+    \centering
+      \includegraphics[width=\linewidth]{assets/sorting.png}
+      \caption{Speedup Diagram for Specific Parallel Sorting Algorithms We Adopted in Oblivious Sorting}
+    \end{figure}
+    
+% \subsubsection{Overall Speedup for Parallel K-Way Butterfly Networking Oblivious Sorting}
+\begin{figure}[htbp]
+\centering
+      \includegraphics[width=\linewidth]{assets/speedup_shuffle.png}
+      \caption{Overall Speedup for Parallel K-Way Butterfly Networking Oblivious Sorting}
+    \end{figure}
+
+\newpage
 \printbibliography
 \end{document}
